@@ -96,8 +96,6 @@ node in the cluster.
 pip install -r requirements.txt
 ```
 
-Do not add `--index-url`. The default PyPI torch 2.9.x wheel is already a
-CUDA 12.8 build, and a custom index is not propagated across the cluster.
 
 ### Storage
 
@@ -118,7 +116,6 @@ workers can read and write it.
 | deepspeed | 0.18.9 |
 | accelerate | 1.3.0 |
 
-(No Weights and Biases anywhere. Metrics flow through Ray Train.)
 
 ---
 
