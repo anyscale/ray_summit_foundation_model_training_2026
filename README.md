@@ -35,7 +35,7 @@ own foundation model and the orchestration code barely changes.
   PRODUCTION         it fails and you fly blind  ->  fault tolerance + observability
    │
    ▼
-  PUTTING IT TOGETHER   combine everything, the way LFM2 was actually trained
+  PUTTING IT TOGETHER   considerations when combining everything
 ```
 
 ---
@@ -50,7 +50,7 @@ own foundation model and the orchestration code barely changes.
 | 02 | `02_memory_and_sharding.ipynb` | Activation checkpointing, FSDP, DeepSpeed ZeRO, memory profiling | **Ray Train + FSDP / DeepSpeed** |
 | 03 | `03_2d_parallelism.ipynb` | Tensor + data parallelism (DTensor, AutoTP), pipeline and expert concepts | **Ray Train orchestrating TP x DP** |
 | 04 | `04_fault_tolerance_and_observability.ipynb` | Checkpointing, a live worker kill, elastic training, dashboards and profiling | **Ray fault tolerance + Anyscale observability** |
-| 05 | `05_putting_it_together_lfm2.ipynb` | 5D parallelism, the bandwidth hierarchy, the LFM2 case study | synthesis |
+| 05 | `05_putting_it_together.ipynb` | 5D parallelism, the bandwidth hierarchy | synthesis |
 
 **Outline coverage.** Data, tensor, pipeline, and expert parallelism (00, 03,
 05). FSDP and DeepSpeed architectures (02, 03). Multi-node GPU scheduling and
