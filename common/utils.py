@@ -81,6 +81,12 @@ DEFAULT_ENV_VARS: dict[str, str] = {
     "NCCL_IB_DISABLE": "1",
     "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
     "HF_HUB_ENABLE_HF_TRANSFER": "1",
+    # 0% Hugging Face at runtime. Every model and dataset is staged from the
+    # tutorial's public S3 mirror, so these force offline mode on every worker:
+    # an accidental repo-id load raises instead of silently hitting the Hub
+    # (which would throttle under a room full of identical clusters).
+    "HF_HUB_OFFLINE": "1",
+    "HF_DATASETS_OFFLINE": "1",
 }
 
 
@@ -172,15 +178,18 @@ class TokenizeText:
 def build_tokenized_text_dataset(
     model_name: str,
     seq_len: int = 128,
-    dataset: str = "ag_news",
-    split: str = "train[:2%]",
+    dataset_dir: str = "/mnt/cluster_storage/datasets/ag_news",
     actors: int = 2,
 ):
-    """Return a Ray Dataset of tokenized text, ready for `get_dataset_shard`."""
-    import ray.data
-    from datasets import load_dataset
+    """Return a Ray Dataset of tokenized text, ready for `get_dataset_shard`.
 
-    raw = ray.data.from_huggingface(load_dataset(dataset, split=split))
+    Reads AG News from local parquet (staged from the tutorial's public S3
+    mirror by the calling notebook), so this never touches the Hugging Face Hub.
+    `model_name` is a local directory holding the tokenizer files.
+    """
+    import ray.data
+
+    raw = ray.data.read_parquet(dataset_dir)
     return raw.map_batches(
         TokenizeText,
         fn_constructor_kwargs={"model_name": model_name, "seq_len": seq_len},
@@ -195,9 +204,7 @@ def build_causal_lm_dataloader(
     dp_size: int,
     seq_len: int = 128,
     batch_size: int = 1,
-    dataset: str = "wikitext",
-    config_name: str = "wikitext-2-raw-v1",
-    split: str = "train[:3%]",
+    data_dir: str = "/mnt/cluster_storage/datasets/wikitext-2-raw-v1",
     seed: int = 42,
 ):
     """A TP-aware causal-LM dataloader for notebook 03.
@@ -206,8 +213,15 @@ def build_causal_lm_dataloader(
     and `dp_size`, NOT world rank and world size. Every tensor-parallel rank in
     the same data-parallel group must see the identical batch, or the gradients
     are wrong.
+
+    Reads WikiText from local parquet (staged from the tutorial's public S3
+    mirror by notebook 03) and loads the tokenizer from the local `model_name`
+    directory, so this never touches the Hugging Face Hub.
     """
-    from datasets import DownloadConfig, load_dataset
+    import glob
+    import os
+
+    from datasets import load_dataset
     from torch.utils.data import DataLoader
     from torch.utils.data.distributed import DistributedSampler
     from transformers import AutoTokenizer
@@ -216,10 +230,8 @@ def build_causal_lm_dataloader(
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
-    raw = load_dataset(
-        dataset, config_name, split=split,
-        download_config=DownloadConfig(disable_tqdm=True),
-    )
+    files = sorted(glob.glob(os.path.join(data_dir, "*.parquet")))
+    raw = load_dataset("parquet", data_files=files, split="train")
     tokenized = raw.map(
         lambda ex: tok(ex["text"], padding="max_length", max_length=seq_len, truncation=True),
         batched=True, remove_columns=raw.column_names,

@@ -103,6 +103,44 @@ This is an Anyscale workspace, so all nodes share `/mnt/cluster_storage`. Every
 checkpoint, profiler trace, and result in this course is written there so all
 workers can read and write it.
 
+### Models and datasets (no Hugging Face token needed)
+
+**Nothing in this course reaches the Hugging Face Hub at runtime.** Every model
+(gpt2, Qwen2.5-0.5B) and dataset (AG News, WikiText-2, MNIST) is mirrored to a
+public S3 bucket:
+
+```
+s3://anyscale-public-materials/ray_summit_foundation_model_training_2026/
+├── models/gpt2/                     # full snapshot (config + tokenizer + safetensors)
+├── models/qwen2.5-0.5b/
+├── datasets/ag_news/                # parquet (train slice)
+├── datasets/wikitext-2-raw-v1/      # parquet (train slice)
+└── datasets/mnist/                  # torchvision raw/ layout
+```
+
+Each notebook sets `HF_HUB_OFFLINE=1` / `HF_DATASETS_OFFLINE=1` (so an accidental
+repo-id load raises instead of hitting the Hub), then stages what it needs into
+shared `/mnt/cluster_storage` with an anonymous, unsigned read:
+
+```bash
+aws s3 sync s3://anyscale-public-materials/ray_summit_foundation_model_training_2026/models/gpt2 \
+            /mnt/cluster_storage/models/gpt2 --no-sign-request
+```
+
+and loads from the local path (`from_pretrained("/mnt/cluster_storage/models/gpt2")`,
+`ray.data.read_parquet(...)`). No token, no credentials, no license gate — so
+hundreds of attendees can run the course at once and **Hugging Face cannot
+throttle the event**. Reads are anonymous; each cluster only writes to its own
+`/mnt/cluster_storage`.
+
+**Presenters — re-seeding the mirror.** The mirror was seeded once by downloading
+the (ungated) models and dataset slices from Hugging Face and uploading them to
+the bucket. To rebuild it, download `gpt2` and `Qwen/Qwen2.5-0.5B` with
+`huggingface-cli download`, export `ag_news[:2%]` and `wikitext-2-raw-v1[:3%]` to
+parquet, download MNIST with `torchvision`, then `aws s3 sync` each into the
+prefix above. Writing to the bucket requires credentials for the
+`anyscale-public-materials` account.
+
 ### Tested configuration
 
 | Component | Version |
