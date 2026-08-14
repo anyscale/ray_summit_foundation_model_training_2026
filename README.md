@@ -6,7 +6,7 @@ training loop to multi-GPU sharded and tensor-parallel training, with
 checkpointing, fault recovery, and deep observability along the way. You run
 every step yourself on a 4-GPU cluster.
 
-> **One Ray surface. Four GPUs or four hundred. Change the config, not the code.**
+> **One Ray surface. Two GPUs or two hundred. Change the config, not the code.**
 
 The models (gpt2, Qwen2.5-0.5B, ResNet, ViT) are just the workload. The lesson
 is how a small set of Ray primitives (`TorchTrainer`, `prepare_model`,
@@ -23,7 +23,7 @@ own foundation model and the orchestration code barely changes.
   WHY            scaling laws, the memory wall, the five ways to split work
    │
    ▼
-  RAY FOUNDATIONS    one GPU  ->  four GPUs with prepare_model + Ray Data
+  RAY FOUNDATIONS    one GPU  ->  two GPUs with prepare_model + Ray Data
    │
    ▼
   MEMORY & SHARDING  the model does not fit  ->  shard it (FSDP, DeepSpeed ZeRO)
@@ -77,9 +77,8 @@ bottom at smoke scale, so you run each cell yourself and watch it work.
 
 ### Cluster
 
-A **4x NVIDIA T4 Anyscale cluster** running the image below. The head node is
-CPU-only. The four T4 GPUs live on one `g4dn.12xlarge` worker node (48 vCPU,
-192 GiB). Four GPUs is the constant. The same code runs whether those four GPUs
+A **2x NVIDIA T4 Anyscale cluster** running the image below. The head node is
+CPU-only. The two T4 GPUs live on `2xg4dn.2xlarge` worker nodes. Two GPUs is the constant. The same code runs whether those two GPUs
 sit on one node or two, because placement is Ray's job, not yours.
 
 The T4 is a Turing GPU. It has fp16 tensor cores but no native bf16, so every
@@ -162,5 +161,5 @@ prefix above. Writing to the bucket requires credentials for the
 Every run here is at smoke scale, with small step counts so it finishes in
 minutes. The goal is to teach the mechanics and the orchestration, not to chase
 a low loss. Pipeline and expert parallelism are presented as concepts with
-diagrams, because they cannot train meaningfully on four T4 GPUs. The same code
+diagrams, because they cannot train meaningfully on two T4 GPUs. The same code
 patterns scale to production by changing config, not logic.
